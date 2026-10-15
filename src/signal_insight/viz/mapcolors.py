@@ -5,11 +5,13 @@
 # @Project    : signal-insight
 # @Author     : Matri
 # @Date       : 2026-10-14 22:00:00
-# @Version    : v1.1.0
+# @Version    : v1.3.0
 # @Description: 地图自己的默认颜色，和 theme.py 无关
 # @ChangeLog:
 #   2026-10-14 22:00:00 | Matri | v1.0.0 | 初始化创建：地图颜色从 theme 里独立出来，可整体设置、临时设置、恢复默认
 #   2026-10-15 10:00:00 | Matri | v1.1.0 | 新增 land（底图底色）
+#   2026-10-15 20:00:00 | Matri | v1.2.0 | 新增 heat_low / heat_mid / heat_high（六边形热力色阶）、small（不足门槛的格子）
+#   2026-10-16 10:00:00 | Matri | v1.3.0 | 新增 small_hatch（fill 小样本抑制的斜线颜色）
 
 """地图的默认颜色。maps.py 和 callouts.py 只从这里取默认色，不读 theme.py：
 主题管通用图表的外观，地图的颜色单独设，改一边不会动另一边。
@@ -45,9 +47,15 @@ DEFAULTS: dict[str, str] = {
     "border": "#FFFFFF",   # 内边界（区与区之间）
     "nan":    "none",      # 数据层里没有数值、没给颜色的区（"none" = 不填，露出底图的 land）
     "debug":  "#B7791F",   # debug=True 时写的坐标
+    "heat_low":  "#DCEAF5",   # 热力色阶（hexbin）：浅端，主色浅
+    "heat_mid":  "#7FB3D9",   # 热力色阶：中段，主色中
+    "heat_high": "#174E73",   # 热力色阶：深端，主色深
+    "small":     "#D5DAE1",   # 不足门槛（<5 人）的格子 / 区域：hexbin(small="gray")、fill(small="gray")；比 land 深一档
+    "small_hatch": "#9CA3AF", # fill(min_value=5) 默认把不足门槛的区画成白底斜线，这是斜线的颜色
 }
 _HELP = {"ink": "文字/外边界/落点/散点", "line": "引线", "hot": "强调", "land": "底图底色", "low": "色阶浅端", "high": "色阶深端",
-         "border": "内边界", "nan": "无数值的区", "debug": "debug 坐标"}
+         "border": "内边界", "nan": "无数值的区", "debug": "debug 坐标",
+         "heat_low": "热力浅端", "heat_mid": "热力中段", "heat_high": "热力深端", "small": "不足门槛的格子", "small_hatch": "小样本斜线"}
 
 
 class MapColors:

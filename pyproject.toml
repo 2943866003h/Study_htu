@@ -27,5 +27,5 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/signal_insight"]
 
-[tool. setuptools.package-data]
-signal_insight = ["styles/*. mplstyle"]
+[tool.setuptools.package-data]
+signal_insight = ["styles/*.mplstyle"]

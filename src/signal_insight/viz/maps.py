@@ -5,7 +5,7 @@
 # @Project    : signal-insight
 # @Author     : Matri
 # @Date       : 2026-10-14 08:36:03
-# @Version    : v2.5.1
+# @Version    : v2.7.0
 # @Description: 地图：长宽比、比例尺、指北针，区域专题图 Regions（几何只算一次，画图逐层叠到一个 ax 上）
 # @ChangeLog:
 #   2026-10-14 08:36:03 | Matri | v1.0.0 | 初始化创建
@@ -26,6 +26,12 @@
 #   2026-10-15 14:00:00 | Matri | v2.5.0 | 地图在 ax 里居中：ax 占满给它的位置、多出的宽度两侧留白（frame fill=True），
 #                                          存图裁边时不再被标题挤到一边；比例尺、指北针按地图框定位；新增别名 alias
 #   2026-10-15 15:00:00 | Matri | v2.5.1 | 同一个 ax 画两遍底图（base 之后又 plot）时警告
+#   2026-10-15 16:00:00 | Matri | v2.5.2 | scale_bar / north_arrow 再调用是替换（挪位置），不叠加；base(scale=dict(km=..)) 可用
+#   2026-10-15 20:00:00 | Matri | v2.6.0 | 新数据层（实现在 layers.py）：hexbin 六边形热力（格宽按米、口径可选、按格抑制小样本）、
+#                                          bubbles 气泡（面积 ∝ 数值 + 参考圈图例）、flows 流向（OD 弧线）、facets 小多图（同色阶）、
+#                                          locator 定位小图；模块级 zoom / circle / colorbar / hexgrid
+#   2026-10-16 10:00:00 | Matri | v2.7.0 | 小样本抑制：fill / text / label / plot / facets 新增 min_value，
+#                                          不足门槛的区不上色（默认白底斜线）、标注写"<5"；只剩一个区被藏时警告（可反推）
 
 """地图：长宽比校正、比例尺、指北针，以及区域专题图 Regions。
 
@@ -96,16 +102,20 @@ import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap, LogNorm, Normalize
-from matplotlib.patches import PathPatch
+from matplotlib.patches import Patch, PathPatch
 from matplotlib.path import Path
 
 from .callouts import FURNITURE, PARTS, Callouts, LabelLayout, Leader, RegionTexts, _as_layout, _Auto   # 引线标注；callouts 不 import maps
 from .mapcolors import MapColors, colors as MC   # 地图自己的颜色，不读 theme；颜色在调用那一刻取
 from .theme import margins_in           # 只用它给旧接口 DistrictMap 算留白；theme 不 import maps
+from . import layers as _layers          # 数据层的实现；layers 不 import maps
+from .layers import HALO, M_PER_DEG, circle, colorbar, heat_cmap, hexgrid, m2deg, nice_size, zoom  # 不依赖区界的几样，viz.maps.zoom(...) 直接用
 
 colors = MC          # viz.maps.colors：地图的默认颜色（set / use / reset），见 mapcolors.py
 
-__all__ = ["LAT0", "LAND", "FURNITURE", "PARTS", "colors", "MapColors", "Regions", "Callouts", "RegionTexts", "LabelLayout", "Leader", "set_map_aspect", "scale_bar", "north_arrow", "DistrictMap"]
+__all__ = ["LAT0", "LAND", "FURNITURE", "PARTS", "M_PER_DEG", "colors", "MapColors", "Regions", "Callouts", "RegionTexts",
+           "LabelLayout", "Leader", "set_map_aspect", "scale_bar", "north_arrow", "DistrictMap",
+           "zoom", "circle", "colorbar", "hexgrid", "nice_size", "m2deg", "HALO", "heat_cmap"]
 
 LAND = "viz.maps.land"   # 底图底色那一层的 gid：ax.collections 里按它找，可以事后改色
 LAT0 = 41.8      # 沈阳大约的纬度。只给旧接口 DistrictMap 当默认值；Regions 用边界的中心纬度
@@ -168,6 +178,18 @@ def _install_fit(ax) -> None:
     ax._viz_fit_installed = True
 
 
+def _replace_furniture(ax, kind: str) -> None:
+    """同一个 ax 上同一种附件只留一个：再调用就是挪位置、改长度，不会叠出第二个。"""
+    for a in [*ax.lines, *ax.texts]:
+        if getattr(a, "_viz_kind", None) == kind:
+            a.remove()
+
+
+def _tag(artists, kind: str) -> None:
+    for a in artists:
+        a._viz_kind = kind
+
+
 def _nice(x: float) -> float:
     """不超过 x 的 1 / 2 / 5 × 10ⁿ。"""
     e = 10 ** np.floor(np.log10(x))
@@ -177,28 +199,32 @@ def _nice(x: float) -> float:
 def scale_bar(ax, km: float | None = None, lat0: float | None = None, x: float = 0.04, y: float = 0.04) -> None:
     """比例尺，默认左下角。km 不给就取约 1/4 视窗宽的整数（1、2、5、10、20…），不足 1 公里写成米。
     x, y 是比例尺左端在地图框里的比例位置（0~1，地图框 = frame 定下的地图 + 留白）；压到区域上时挪一下，如 x=0.6, y=0.04 放到右下。
-    先设好视窗再调用（位置按当前视窗算）。"""
+    先设好视窗再调用（位置按当前视窗算）。同一个 ax 再调用一次 = 挪位置 / 改长度，旧的自动去掉，不会叠两个。"""
     x0, x1, y0, y1 = _view(ax)
     lat0 = (y0 + y1) / 2 if lat0 is None else lat0
     km_per_deg = 111.32 * np.cos(np.radians(lat0))
     km = _nice(0.25 * (x1 - x0) * km_per_deg) if km is None else km
     deg, ink = km / km_per_deg, MC.ink
     xs, ys = x0 + x * (x1 - x0), y0 + y * (y1 - y0)
-    ax.plot([xs, xs + deg], [ys, ys], color=ink, lw=1.2, solid_capstyle="butt", gid=FURNITURE)
-    for x in (xs, xs + deg):                                         # 两端短竖线
-        ax.plot([x, x], [ys, ys + 0.008 * (y1 - y0)], color=ink, lw=0.8, gid=FURNITURE)
-    ax.text(xs + deg / 2, ys + 0.018 * (y1 - y0), f"{km:g} 公里" if km >= 1 else f"{km * 1000:g} 米",
-            ha="center", va="bottom", fontsize=9, color=ink, gid=FURNITURE)
+    _replace_furniture(ax, "scale")
+    drawn = ax.plot([xs, xs + deg], [ys, ys], color=ink, lw=1.2, solid_capstyle="butt", gid=FURNITURE)
+    for xe in (xs, xs + deg):                                        # 两端短竖线
+        drawn += ax.plot([xe, xe], [ys, ys + 0.008 * (y1 - y0)], color=ink, lw=0.8, gid=FURNITURE)
+    drawn.append(ax.text(xs + deg / 2, ys + 0.018 * (y1 - y0), f"{km:g} 公里" if km >= 1 else f"{km * 1000:g} 米",
+                         ha="center", va="bottom", fontsize=9, color=ink, gid=FURNITURE))
+    _tag(drawn, "scale")
 
 
 def north_arrow(ax, x: float = 0.95, y: float = 0.95) -> None:
-    """指北针，默认地图框右上角（x, y 是地图框里的比例位置）。"""
+    """指北针，默认地图框右上角（x, y 是地图框里的比例位置）。同一个 ax 再调用一次 = 挪位置，不会叠两个。"""
     ink = MC.ink
+    _replace_furniture(ax, "north")
     x0, x1, y0, y1 = _view(ax)
     px, py = x0 + x * (x1 - x0), y0 + y * (y1 - y0)
-    ax.annotate("北", xy=(px, py), xytext=(px, py - 0.08 * (y1 - y0)), xycoords="data",
-                ha="center", va="top", fontsize=9, color=ink,
-                arrowprops=dict(arrowstyle="-|>", color=ink, lw=0.8, shrinkA=0, shrinkB=0), gid=FURNITURE)
+    a = ax.annotate("北", xy=(px, py), xytext=(px, py - 0.08 * (y1 - y0)), xycoords="data",
+                    ha="center", va="top", fontsize=9, color=ink,
+                    arrowprops=dict(arrowstyle="-|>", color=ink, lw=0.8, shrinkA=0, shrinkB=0), gid=FURNITURE)
+    _tag([a], "north")
 
 # ── 几何小工具 ────────────────────────────────────────────────────────────
 def _as_rings(geom, name) -> list[np.ndarray]:
@@ -473,7 +499,8 @@ class Regions:
         land:    底色。True = colors.land（浅灰）；给颜色字符串；给 dict 传 PatchCollection 样式；False 不画。
                  有了底色，白色内边界才看得见；没数据的区也露出底色，和"数值低"的白色区分得开。
         borders / outline: True 默认样式；dict 传样式（color / lw / ls…）；False 不画。
-        scale / north:     True 默认位置；dict 改位置，如 scale=dict(x=0.6)（轴内比例）；False 不画。
+        scale / north:     True 默认位置；dict 改位置和长度，如 scale=dict(x=0.6, y=0.05, km=10)、north=dict(x=0.05)
+                           （地图框里的比例位置，0~1）；False 不画。画完想再挪：viz.maps.scale_bar(ax, x=...) 会替换旧的。
         margin:  视窗留白（按长边比例）。区域贴着外框四角时调大，给比例尺、指北针腾地方。"""
         if ax is None:
             _, ax = plt.subplots(figsize=(height * self.aspect + (3.2 if room else 0.4), height), layout="constrained")
@@ -497,14 +524,15 @@ class Regions:
         if outline is not False:
             self.outline(ax, **({} if outline is True else outline))
         if scale is not False:
-            scale_bar(ax, km, self.lat0, **({} if scale is True else scale))
+            sk = {"km": km, "lat0": self.lat0, **({} if scale is True else dict(scale))}   # dict 里也可以写 km
+            scale_bar(ax, **sk)
         if north is not False:
             north_arrow(ax, **({} if north is True else north))
         return ax
 
     def fill(self, ax, values: Mapping[str, float] | pd.Series | None = None, *, colors=None,
              cmap=None, norm: str | Normalize = "linear", nan_color=None, edgecolor="face", lw: float = 0.3,
-             **kw) -> PatchCollection:
+             min_value: float | None = None, small: str = "hatch", **kw) -> PatchCollection:
         """填色，两种方式二选一。只管填色：区界用 borders / outline / edges 另画。
 
         按数值（values）：{名字: 数} 或 Series，按色阶着色（默认 colors.low → colors.high，即白 → 灰）。
@@ -513,7 +541,19 @@ class Regions:
           pc.cmap / pc.norm 给右边的图用同一色阶。
         按区给颜色（colors）：{名字: 颜色}，类别图用（商圈各一色、强调某几个区）；也可以给一个颜色，全部填它。
         nan_color: 没有数值 / 没给颜色的区域填什么色，默认 colors.nan（"none" = 不填，露出底色）。
-        edgecolor="face" + 细线：相邻两块之间不留抗锯齿的白缝；想让填色自带分界线，给 edgecolor="white", lw=0.9。"""
+        edgecolor="face" + 细线：相邻两块之间不留抗锯齿的白缝；想让填色自带分界线，给 edgecolor="white", lw=0.9。
+
+        小样本抑制（规范第 7 节：少于 5 人不公布）——值是人数时，建议总是写上 min_value=5：
+          min_value: 数值小于它的区不按数值上色，改画 small 指定的样子；也不参与色阶（log 色阶的下限不会被它拉低）。
+                     默认 None = 不抑制（数值不是人数时，比如占比、密度，就别开）。
+          small:     "hatch"（默认）白底灰斜线，一眼看出"有数据但不公布"；
+                     "gray"  填 colors.small（浅灰）；
+                     "blank" 不画，露出底色——注意这样和"没有数据"看起来一样，副标题里要写清楚。
+          画完后：pc.suppressed = 被藏的区名列表；pc.small_patch = 可以放进图例的色块
+                  （ax.legend(handles=[pc.small_patch], loc="upper center", bbox_to_anchor=(0.5, 0), frameon=False)）；
+                  pc.small_layer = 画斜线 / 浅灰的那一层（没有被藏的区时是 None）。
+          只有一个区被藏时会警告：标题、副标题里如果写了"全市合计"，用合计减去其他区就能算出它。
+          同一组数据的标注也要藏：text / label 传同一个 min_value，数值会写成 "<5"。geo.plot(min_value=5) 一次全办了。"""
         if values is not None and colors is not None:
             raise ValueError("values 和 colors 二选一：按数值上色给 values，按区直接给颜色用 colors")
         nan_color = MC.nan if nan_color is None else nan_color
@@ -527,17 +567,41 @@ class Regions:
             if bad := {n: c for n, c in colors.items() if not mcolors.is_color_like(c)}:
                 raise ValueError(f"colors 里这些不是颜色：{bad}")
             face = [colors.get(n, nan_color) for n in order]
+            if min_value is not None:
+                raise ValueError("min_value 只对按数值填色（values=）有用：colors= 是直接给颜色，没有数可比")
             pc = PatchCollection(patches, facecolors=face, edgecolor=edgecolor, linewidth=lw, **kw)
             ax.add_collection(pc, autolim=False)
             return pc
         vals = {} if values is None else {str(k): v for k, v in dict(values).items()}
         self._known(vals, "values")
+        small_names, small_style = [], None
+        if min_value is not None:
+            if small not in ("hatch", "gray", "blank"):
+                raise ValueError(f"small 只能是 'hatch'（斜线，默认）、'gray'（浅灰）、'blank'（不画），拿到 {small!r}")
+            small_names = [n for n, x in vals.items() if n in self._rings and _is_small(x, min_value)]
+            vals = {n: x for n, x in vals.items() if n not in small_names}       # 被藏的区不参与上色和色阶
+            small_style = (dict(facecolor="white", edgecolor=MC.small_hatch, hatch="////", linewidth=0)
+                           if small == "hatch" else dict(facecolor=MC.small, edgecolor="face", linewidth=lw))
         arr = np.ma.masked_invalid(np.array([vals.get(n, np.nan) for n in order], float))
         cmap = plt.get_cmap(cmap) if isinstance(cmap, str) else cmap
         cmap = (cmap or LinearSegmentedColormap.from_list("regions", [MC.low, MC.high])).with_extremes(bad=nan_color)
         pc = PatchCollection(patches, cmap=cmap, norm=_norm(norm, arr), edgecolor=edgecolor, linewidth=lw, **kw)
         pc.set_array(arr)
         ax.add_collection(pc, autolim=False)
+        pc.suppressed, pc.small_layer, pc.small_patch = small_names, None, None
+        if min_value is not None:
+            if small != "blank":                                    # 图例色块：Patch 不认 edgecolor="face"，换成同色
+                legend_style = {**small_style, "edgecolor": small_style["facecolor"] if small == "gray" else MC.small_hatch,
+                                "linewidth": 0}
+                pc.small_patch = Patch(**legend_style, label=f"不足 {min_value:g} 人（不公布）")
+            if small_names and small != "blank":
+                pc.small_layer = PatchCollection([PathPatch(self._paths[n]) for n in small_names], zorder=pc.get_zorder(),
+                                                 **small_style)
+                ax.add_collection(pc.small_layer, autolim=False)
+            if len(small_names) == 1 and vals:
+                warnings.warn(f"只有 {small_names[0]} 一个区不足 {min_value:g}：如果标题、副标题或别的图里写了这些区的合计，"
+                              f"用合计减去其他区就能算出它。要么不写合计，要么再藏一个最小的区（互补抑制，见文档第 11 节）",
+                              stacklevel=2)
         return pc
 
     @property
@@ -605,7 +669,8 @@ class Regions:
     def text(self, ax, texts: Mapping | pd.Series, *, hot: Iterable[str] = (), fmt: str | Callable = "{:,.0f}",
              nameprops=None, valueprops=None, each: Mapping[str, Mapping | bool] | None = None,
              at: Mapping[str, tuple[float, float]] | None = None, fs: float = 9, stack: bool = True,
-             sep: float = 1, halo=True, overflow: str = "show", alias: Mapping[str, str] | None = None) -> RegionTexts:
+             sep: float = 1, halo=True, overflow: str = "show", alias: Mapping[str, str] | None = None,
+             min_value: float | None = None) -> RegionTexts:
         """区内标注：名字和数值直接写在每个区的落点上（区内离边界最远的点，不贴边、不落进洞）。返回 RegionTexts。
 
         数据写法、nameprops / valueprops / each / hot / fmt 和 label() 完全一样（line / dot 两部分在这里不用）。
@@ -614,7 +679,9 @@ class Regions:
         overflow: 文字超出所在区时，"show" 照画并警告一次，"hide" 不画；超出的名字在 co.overflow。
                   想让放不下的自动引到外面，用 geo.label(ax, texts, inside="auto")。
         at:       {名字: (lng, lat)} 手动指定位置。
-        alias:    {名字: 显示名}，这一次的别名，盖过 geo.alias。"""
+        alias:    {名字: 显示名}，这一次的别名，盖过 geo.alias。
+        min_value: 数值小于它的写成 "<5"（规范第 7 节），和 fill 的 min_value 给同一个数。"""
+        fmt = _small_fmt(fmt, min_value)
         items, each = self._label_data(texts, each, hot, alias)
         return self._text_layer(ax, items, each=each, hot=hot, fmt=fmt, nameprops=nameprops, valueprops=valueprops,
                                 at=at, fs=fs, stack=stack, sep=sep, halo=halo, overflow=overflow)
@@ -647,7 +714,8 @@ class Regions:
               side="auto", split="center", spread: str = "span", angle: float | None = None, uncross: bool = True,
               at: Mapping[str, tuple[float, float]] | None = None, fs: float = 9,
               elbow: float = 14, stub: float = 28, gap: float = 4, pad: float = 3, sep: float = 3,
-              inside=False, alias: Mapping[str, str] | None = None, debug: bool = False) -> Callouts:
+              inside=False, alias: Mapping[str, str] | None = None, debug: bool = False,
+              min_value: float | None = None) -> Callouts:
         """左右两列引线标注：文字 → 起点 —横线— 拐点 → 斜线进区到终点（落点）。返回 Callouts。
 
         texts:  {名字: 值} 或 Series，值可以是
@@ -687,7 +755,9 @@ class Regions:
         alias:  {名字: 显示名}，这一次的别名，盖过 geo.alias（名字太长时用）。
         inside: False（默认）全部引到外面；"auto" 放得下的写在区内（同 text()），放不下的才引到外面。
                 "auto" 时区内那部分在 co.inside（RegionTexts），改样式用 co.inside.texts / co.inside.nums。
-        数据是空的、或名字都不在底图里：什么都不画（名字写错会警告），不报错。"""
+        数据是空的、或名字都不在底图里：什么都不画（名字写错会警告），不报错。
+        min_value: 数值小于它的写成 "<5"（规范第 7 节），和 fill 的 min_value 给同一个数。"""
+        fmt = _small_fmt(fmt, min_value)
         items, each = self._label_data(texts, each, hot, alias)
         skip, rt = None, None
         if inside == "auto":
@@ -743,14 +813,16 @@ class Regions:
     def plot(self, values=None, texts=None, *, ax=None, colors=None, norm: str | Normalize = "linear", cmap=None,
              dots: Iterable[tuple] = (), land=True, borders: Mapping | bool = True, outline: Mapping | bool = True,
              scale: Mapping | bool = True, north: Mapping | bool = True, km: float | None = None,
-             margin: float = 0.02, height: float = 6.0, **label_kw):
+             margin: float = 0.02, height: float = 6.0, min_value: float | None = None, small: str = "hatch",
+             **label_kw):
         """常用组合一步画完 = base()（底图）+ fill（填色）+ dots（叠点）+ label（标注）。返回 ax，之后照常往上加东西。
         values / colors 都不给就只有底图。缺数据的区不填色，露出底图的底色（colors.land）。
         texts: 给 label 的数据；texts=True 用 values 写"名字 数值"，没有 values 就只写名字（标出全部区，别名照用）。
         colors: 交给 fill，按区直接给颜色（这时 values 只用来写标注，不填色）。
         land / borders / outline / scale / north / margin: 见 base()。dots: [(DataFrame 或 N×2 数组, 颜色), ...]。
         其余关键字（hot、inside、layout、spread、angle、nameprops、each…）原样交给 label()。
-        需要色条或同色阶时，自己调 fill 拿返回值。"""
+        需要色条或同色阶时，自己调 fill 拿返回值。
+        min_value / small: 小样本抑制，同时作用于填色和标注（见 fill）；有区被藏时地图正下方自动加一个图例色块。"""
         if texts is True:
             texts = values if values is not None else dict.fromkeys(self._rings, np.nan)   # 只写名字（别名照用）
         has_texts = texts is not None and len(texts) > 0
@@ -759,12 +831,101 @@ class Regions:
         if colors is not None:
             self.fill(ax, colors=colors)
         elif values is not None:
-            self.fill(ax, values, norm=norm, cmap=cmap)
+            pc = self.fill(ax, values, norm=norm, cmap=cmap, min_value=min_value, small=small)
+            if pc.suppressed and pc.small_patch is not None:
+                lg = ax.legend(handles=[pc.small_patch], loc="upper center", bbox_to_anchor=(0.5, 0.0),
+                               frameon=False, fontsize=9, handlelength=1.6)   # 放在地图正下方的外面：不压任何区
+                lg.set_gid(FURNITURE)                                   # 引线标注会让开它
         for data, color in dots:
             self.points(ax, data, color=color)
         if has_texts:
-            self.label(ax, texts, **label_kw)
+            self.label(ax, texts, min_value=min_value, **label_kw)
         return ax
+
+
+    # ---------------------------------------------------------------- 更多数据层（实现在 layers.py）
+    def hexbin(self, ax, df: pd.DataFrame, size_m: float | None = None, *, lng: str = "lng", lat: str = "lat",
+               value: str | None = None, how: str = "count", min_value: float | None = 5, small: str = "blank",
+               norm: str | Normalize = "log", vmax: float | None = None, cmap=None, clip: bool = True,
+               origin: tuple[float, float] | None = None, n: int = 40, edgecolor="white", lw: float = 0.2,
+               zorder: float = 1.2, **kw):
+        """六边形热力（规范第 4 节：空间分布的默认图形）。返回 PolyCollection，带 .cells（每格统计表）和 .size_m。
+
+        口径 how（value 是按哪一列聚合）：
+          "nunique" + value="imsi"（传 sig）：连过格内任一基站的人去重计数，一人只算一次——人数推荐用它；
+          "max" + value="用户数"（传 site_users）：格内最热基站的人数；
+          "sum"：各站相加，人数会重复计数；"count"：行数；"mean"：平均（不是人数，记得 min_value=None）。
+        size_m:    格宽（米，相邻两格中心距离）。不给 = 外框宽约 n 格，取整到 500 米、2.5 公里这类数。
+                   几张图用同一个 size_m 格子才一样大、颜色才能比；格宽写进副标题。
+        min_value: 不足它的格子不画（规范第 7 节，按格子判断）；small="gray" 画成 colors.small，图上要说明灰格含义。
+        clip:      只统计区内的点（区外、洞里的不算），六边形裁到区界。
+        norm:      "log"（默认，下限 = min_value）| "linear" | Normalize；vmax 给色阶上限，几张图同一色阶时用。
+        画在底色上、区界下（zorder 1.2）。色条用 viz.maps.colorbar(hb, ax, label=...)。"""
+        return _layers.hexbin(self, ax, df, size_m, lng=lng, lat=lat, value=value, how=how, min_value=min_value,
+                              small=small, norm=norm, vmax=vmax, cmap=cmap, clip=clip, origin=origin, n=n,
+                              edgecolor=edgecolor, lw=lw, zorder=zorder, **kw)
+
+    def bubbles(self, ax, df: pd.DataFrame, value: str, *, lng: str = "lng", lat: str = "lat", hot=None,
+                color=None, hot_color=None, smax: float = 1600.0, vmax: float | None = None,
+                min_value: float | None = 5, alpha: float = 0.78, legend: Mapping | bool = True, ref=None,
+                title: str | None = None, zorder: float = 3, **kw):
+        """气泡：面积 ∝ value（不是直径 ∝ value）。大的先画，小气泡压在上面不被盖住。返回 PathCollection。
+
+        hot:    和 df 等长的布尔数组，标出要强调的几行（colors.hot），其余 colors.high（灰）。
+        smax:   最大值对应的气泡面积（磅²）。vmax：按哪个数折算面积，几张图要可比时给同一个数。
+        min_value: 不足它的不画（规范第 7 节）。
+        legend: 三个参考圈（1/2/5×10ⁿ，自动选），默认横排在 ax 正下方；dict 改 legend 参数（loc、bbox_to_anchor…），
+                ref=[...] 自己定参考值，title 改标题。
+        返回值还带 .size_of(数值) → 面积（磅²），自己在气泡旁写数字时用它算半径：sqrt(面积 / π)。"""
+        return _layers.bubbles(self, ax, df, value, lng=lng, lat=lat, hot=hot, color=color, hot_color=hot_color,
+                               smax=smax, vmax=vmax, min_value=min_value, alpha=alpha, legend=legend, ref=ref,
+                               title=title, zorder=zorder, **kw)
+
+    def flows(self, ax, od, *, origin: str = "o", dest: str = "d", value: str = "v", top: int | None = 15,
+              min_value: float | None = 5, hot: int = 3, at: Mapping[str, tuple[float, float]] | None = None,
+              bend: float = 0.25, max_lw: float = 8.0, min_lw: float = 0.6, color=None, hot_color=None,
+              fmt: str = "{:,.0f}", labels: bool = True, legend: Mapping | bool = True, unit: str = "人",
+              alpha: float = 0.85, zorder: float = 4):
+        """流向图（OD）：从起点区到终点区的弧线箭头，线宽 ∝ 人数。
+
+        od:     DataFrame（列名用 origin / dest / value 指定）或 {(起点, 终点): 人数}。
+        top:    只画最大的 top 条（默认 15，再多就成了一团线；完整的关系用热力矩阵）。
+        hot:    最大的几条用 colors.hot 并在弧线中点写数值，其余 colors.high（灰）。
+        at:     {名字: (lng, lat)}：边界里没有的起讫点（"外地"、某个商圈中心）给坐标；也可覆盖区的落点。
+        bend:   弧度。A→B 和 B→A 各自往自己的右手边弯，往返两条线自然分开。
+        min_value: 不足它的不画。区内流动（起点 = 终点）不画。
+        返回 SimpleNamespace：arrows / texts（按 (起点, 终点) 取）、data（画了的那些行）、legend、
+        dropped（没画的：self_loops 区内流动条数、small 不足门槛条数、unknown 不认识的名字、beyond_top 超出 top 的条数）。
+        副标题里写上"只画前 N 条""区内流动未画"。"""
+        return _layers.flows(self, ax, od, origin=origin, dest=dest, value=value, top=top, min_value=min_value,
+                             hot=hot, at=at, bend=bend, max_lw=max_lw, min_lw=min_lw, color=color, hot_color=hot_color,
+                             fmt=fmt, labels=labels, legend=legend, unit=unit, alpha=alpha, zorder=zorder)
+
+    def facets(self, data, *, ncols: int | None = None, norm: str | Normalize = "linear", vmax: float | None = None,
+               cmap=None, height: float = 3.0, label: str = "", text: bool = False, fmt: str = "{:,.0f}",
+               hot_max: bool = True, land=True, titles: Mapping[str, str] | None = None,
+               min_value: float | None = None, small: str = "hatch", **fill_kw):
+        """小多图：同一张底图画几遍，每张一组数（如 8 点 / 12 点 / 19 点 / 22 点），共用一个色阶和一根色条。
+        规范第 5 节：图例超过 7 项、前后对比时，拆成小多图而不是挤在一张里。
+
+        data:   {面板名: {区名: 数值}}，或 DataFrame（行 = 区名，列 = 面板，df.pivot 出来的样子）。
+        ncols:  每行几张（默认 ≤ 4）。height：每张地图高（英寸）。
+        norm:   "linear" | "log" | Normalize：所有面板同一个，颜色才能互相比；vmax 给上限。
+        text:   True 在区内写数值（放不下的不写：面板小时多半写不下，height 调大或只看颜色）。
+        hot_max: 每张面板里最大的那个区整圈描边（colors.hot）；text 时数值也用 hot 色。
+        cmap:   默认同 fill（白 → 灰）；要蓝色热力色阶给 cmap=viz.maps.heat_cmap()。
+        min_value / small: 小样本抑制（见 fill），每张面板都按它藏，数字也写 "<5"。
+        比例尺、指北针只画在第一张。返回 (fig, axes, colorbar)；之后照常 viz.finish(fig, ...)。"""
+        return _layers.facets(self, data, ncols=ncols, norm=norm, vmax=vmax, cmap=cmap, height=height, label=label,
+                              text=text, fmt=fmt, hot_max=hot_max, land=land, titles=titles, min_value=min_value,
+                              small=small, **fill_kw)
+
+    def locator(self, ax, highlight: Iterable[str] = (), *, box: tuple[float, float, float, float] | None = None,
+                loc: str = "lower right", width: float = 0.28, pad: float = 0.02):
+        """定位小图：在 ax 角落画这张底图（通常是全市）的缩略图，highlight 的区用 colors.heat_mid，
+        box=(lng0, lat0, lng1, lat1) 画框。主图只画一部分（内五区、某个商圈）时，读者靠它知道"这是城市的哪里"。
+        loc: "lower right" / "lower left" / "upper right" / "upper left"；width 是占 ax 宽的比例。返回小图的 ax。"""
+        return _layers.locator(self, ax, highlight, box=box, loc=loc, width=width, pad=pad)
 
 
 def _label_items(texts, alias: Mapping[str, str] | None = None) -> dict[str, tuple[str, float | None]]:
@@ -779,6 +940,24 @@ def _label_items(texts, alias: Mapping[str, str] | None = None) -> dict[str, tup
         else:
             out[n] = (alias.get(n, n), _number(v, n))
     return out
+
+
+def _is_small(v, min_value) -> bool:
+    """是不是"不足门槛"的数：是有限的数、且小于 min_value。字符串、NaN 都不算。"""
+    if isinstance(v, (bool, np.bool_)) or not isinstance(v, (int, float, np.number)):
+        return False
+    return bool(np.isfinite(v) and v < min_value)
+
+
+def _small_fmt(fmt, min_value):
+    """在数值写法外面包一层：小于 min_value 的写 "<5"，其余照原来的写法。min_value=None 原样返回。"""
+    if min_value is None:
+        return fmt
+    def f(v):
+        if _is_small(v, min_value):
+            return f"<{min_value:g}"
+        return fmt(v) if callable(fmt) else fmt.format(v)
+    return f
 
 
 def _number(v, name):
