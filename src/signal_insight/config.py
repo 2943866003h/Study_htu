@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @File       : quality.py
-# @Path       : signal-insight/src/signal_insight/quality.py
+# @File       : config.py
+# @Path       : signal-insight/src/signal_insight/config.py
 # @Project    : signal-insight
-# @Author     : lijiaheng
-# @Date       : 2026-10-10 16:37:56
-# @Version    : v1.0.0
-# @Description:
+# @Author     : Matri
+# @Date       : 2026-10-10 14:53:18
+# @Version    : v1.1.0
+# @Description: 
 # @ChangeLog:
-#   2026-10-10 14:53:56 | lijiaheng | v1.0.0 | 初始化创建
-#   2026-10-10 16:37:56 | lijiaheng | v1.1.0 | 新增主题配置 THEME / THEME_DIR
-#   2026-10-14 09:07:56 | lijiaheng | v1.2.0 | 主题改用viz/styles/*.mplstyle,删除THEME_DIR
-
+#   2026-10-10 14:53:18 | Matri | v1.0.0 | 初始化创建
+#   2026-10-10 16:30:00 | Matri | v1.1.0 | 新增主题配置 THEME / THEME_DIR
+#   2026-10-14 09:05:00 | Matri | v1.2.0 | 主题改用viz/styles/*.mplstyle,删除THEME_DIR
 import os
 from pathlib import Path
 
@@ -46,12 +45,8 @@ IMAGE_DIR = PROJECT_ROOT / "image"
 # 默认的可视化主题: viz/style/里面的文件.default, academic. business, lively
 THEME = os.environ.get("SIGNAL_THEME", "default")
 
-
 # 口径常量：
 UTC_OFFSET_HOURS = 8
 ANALYSIS_DAY = "2018-10-03"
 SOURCE_NOTE = "数据来源：沈阳移动信令样本(脱敏，2018年国庆)"
-AUTHOR = "lijiaheng 2428624104"
-
-if __name__ == '__main__':
-    pass
+AUTHOR = "AzureKite 1210"

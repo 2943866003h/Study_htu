@@ -3,13 +3,12 @@
 # @File       : quality.py
 # @Path       : signal-insight/src/signal_insight/quality.py
 # @Project    : signal-insight
-# @Author     : lijiaheng
-# @Date       : 2026-10-10 16:37:56
+# @Author     : Matri
+# @Date       : 2026-10-10 16:34:08
 # @Version    : v1.0.0
 # @Description: 
 # @ChangeLog:
-#   2026-10-10 16:37:56 | lijiaheng | v1.0.0 | 初始化创建
-
+#   2026-10-10 16:34:08 | Matri | v1.0.0 | 初始化创建
 import pandas as pd
 STATUSES = ("通过","警告","不通过")
 COLUMNS = ["check_id", "维度", "检查项","表字段", "结果", "状态", "证据","处理决定"]
@@ -32,6 +31,7 @@ def dq_record(con, check_id:str, dimension:str, item:str,
     n_old = len(old[old['check_id'] == check_id])
     overwrite = f"（覆盖 {n_old} 条旧记录）" if n_old else ""
     print(f"【{status}】{check_id} {dimension} | {item}: {result}{overwrite}")
+
 
 def profile(df: pd.DataFrame) -> pd.DataFrame:
     """生成数据画像，每个字段输出一行统计信息。
