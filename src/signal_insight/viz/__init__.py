@@ -3,12 +3,12 @@
 # @File       : __init__.py.py
 # @Path       : signal-insight/src/signal_insight/viz/__init__.py.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-14 08:31:17
 # @Version    : v1.0.0
 # @Description: 
 # @ChangeLog:
-#   2026-10-14 08:31:17 | Matri | v1.0.0 | 初始化创建
+#   2026-10-14 08:31:17 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 """图表：theme 管主题（语义色、切换主题、标题区），maps 管地图，heatmatrix 管热力矩阵，styles/ 放主题文件。
 
 D02 时这里是 viz.py + theme.py 两个文件；D04 主题改用 .mplstyle 文件，

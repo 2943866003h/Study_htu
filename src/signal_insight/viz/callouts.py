@@ -3,16 +3,16 @@
 # @File       : callouts.py
 # @Path       : signal-insight/src/signal_insight/viz/callouts.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-14 16:00:00
 # @Version    : v1.3.0
 # @Description: 引线标注：自动排版（按中线分左右、按纬度排上下、等距铺满）、参数包 LabelLayout、逐条样式、自检
 # @ChangeLog:
-#   2026-10-14 16:00:00 | Matri | v1.0.0 | 从 maps.py 拆出：标注位置的改动原因（调标注、换参数包）和地图几何不同（AGENTS.md 第 2 条）
-#   2026-10-14 20:00:00 | Matri | v1.1.0 | 自动排版默认改为 span：按地图经度中线分左右、按落点纬度排上下；可选固定角度拐点 angle；
+#   2026-10-14 16:00:00 | lijiaheng2428624104 | v1.0.0 | 从 maps.py 拆出：标注位置的改动原因（调标注、换参数包）和地图几何不同（AGENTS.md 第 2 条）
+#   2026-10-14 20:00:00 | lijiaheng2428624104 | v1.1.0 | 自动排版默认改为 span：按地图经度中线分左右、按落点纬度排上下；可选固定角度拐点 angle；
 #                                          名字/数值/引线/落点四部分各自可设样式、可隐藏，可逐条覆盖（each）
-#   2026-10-14 22:00:00 | Matri | v1.2.0 | 默认色改从 viz.maps.colors 取，不再依赖 theme.py
-#   2026-10-15 10:00:00 | Matri | v1.3.0 | 新增区内标注 RegionTexts；Callouts 可跳过区内已放下的名字（inside="auto"）；
+#   2026-10-14 22:00:00 | lijiaheng2428624104 | v1.2.0 | 默认色改从 viz.maps.colors 取，不再依赖 theme.py
+#   2026-10-15 10:00:00 | lijiaheng2428624104 | v1.3.0 | 新增区内标注 RegionTexts；Callouts 可跳过区内已放下的名字（inside="auto"）；
 #                                          空数据不再报错；两种标注共用一套样式规则
 
 """引线标注。一条引线三个点：起点（文字那端）—横线— 拐点 —斜线— 终点（区内落点）。

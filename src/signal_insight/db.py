@@ -3,12 +3,12 @@
 # @File       : db.py
 # @Path       : signal-insight/src/signal_insight/db.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-15 10:59:08
 # @Version    : v1.0.0
 # @Description: 数据库读写：连接、按日期分区写入、整表替换、追加。
 # @ChangeLog:
-#   2026-10-15 10:59:08 | Matri | v1.0.0 | 初始化创建
+#   2026-10-15 10:59:08 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 
 """
 只会因为"换了数据库"而改（AGENTS.md 第 2 条）。换成 MySQL、Hive 时，计算模块一行不动，只改这里。

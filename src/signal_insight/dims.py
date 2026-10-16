@@ -3,12 +3,12 @@
 # @File       : dims.py
 # @Path       : signal-insight/src/signal_insight/dims.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-15 14:37:08
 # @Version    : v1.0.0
 # @Description: 维度表：dim_cell（扇区 → 站点 → 区县 → 商圈）、dim_hotspot（热点）。
 # @ChangeLog:
-#   2026-10-15 14:37:08 | Matri | v1.0.0 | 初始化创建
+#   2026-10-15 14:37:08 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 """
 纯计算（AGENTS.md 第 4 条）：多边形由调用方用 geo.rings_from_points 还原好传进来，这里不读库。
 """

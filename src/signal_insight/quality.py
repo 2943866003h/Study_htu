@@ -3,12 +3,12 @@
 # @File       : quality.py
 # @Path       : signal-insight/src/signal_insight/quality.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-10 16:34:08
 # @Version    : v1.0.0
 # @Description: 
 # @ChangeLog:
-#   2026-10-10 16:34:08 | Matri | v1.0.0 | 初始化创建
+#   2026-10-10 16:34:08 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 import pandas as pd
 STATUSES = ("通过","警告","不通过")
 COLUMNS = ["check_id", "维度", "检查项","表字段", "结果", "状态", "证据","处理决定"]

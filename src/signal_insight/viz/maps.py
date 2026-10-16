@@ -3,34 +3,34 @@
 # @File       : maps.py
 # @Path       : signal-insight/src/signal_insight/viz/maps.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-14 08:36:03
 # @Version    : v2.7.0
 # @Description: 地图：长宽比、比例尺、指北针，区域专题图 Regions（几何只算一次，画图逐层叠到一个 ax 上）
 # @ChangeLog:
-#   2026-10-14 08:36:03 | Matri | v1.0.0 | 初始化创建
-#   2026-10-14 14:00:00 | Matri | v2.0.0 | 拆成 Regions（只管几何）+ 逐层画到调用方给的 ax；标注改为绘制时按像素排版；
+#   2026-10-14 08:36:03 | lijiaheng2428624104 | v1.0.0 | 初始化创建
+#   2026-10-14 14:00:00 | lijiaheng2428624104 | v2.0.0 | 拆成 Regions（只管几何）+ 逐层画到调用方给的 ax；标注改为绘制时按像素排版；
 #                                          尺寸单位从"度"改成磅/比例，任何尺度、纬度都能用；颜色改从 C 取；
 #                                          支持内环（洞）；外缘不再依赖公共边顶点对齐；DistrictMap 保留为旧接口的薄包装
-#   2026-10-14 16:00:00 | Matri | v2.1.0 | 引线回到等距两列样式；新增参数包 LabelLayout（起点/拐点/终点可逐条改，
+#   2026-10-14 16:00:00 | lijiaheng2428624104 | v2.1.0 | 引线回到等距两列样式；新增参数包 LabelLayout（起点/拐点/终点可逐条改，
 #                                          存 JSON 复用），Callouts.freeze() 把自动结果定下来，debug 标出坐标；
 #                                          引线标注拆到 callouts.py
-#   2026-10-14 20:00:00 | Matri | v2.2.0 | 区界拆成三层各自可设计：borders 内边界（公共边只画一次）、outline 外边界、
+#   2026-10-14 20:00:00 | lijiaheng2428624104 | v2.2.0 | 区界拆成三层各自可设计：borders 内边界（公共边只画一次）、outline 外边界、
 #                                          edges 指定区域整圈；fill 只管填色。label 默认 span + 中线分侧 + 纬度排序，
 #                                          数据可直接给数值（名字、数值分开着色），四部分样式可设、可隐藏、可逐条覆盖
-#   2026-10-14 22:00:00 | Matri | v2.3.0 | 颜色和 theme.py 脱钩：默认色统一从 viz.maps.colors 取，可整体设、临时设；
+#   2026-10-14 22:00:00 | lijiaheng2428624104 | v2.3.0 | 颜色和 theme.py 脱钩：默认色统一从 viz.maps.colors 取，可整体设、临时设；
 #                                          fill 可按区直接给颜色（colors=），points 可按列分组着色（by= + colors=）
-#   2026-10-15 10:00:00 | Matri | v2.4.0 | 底图和数据层分开：base() 只画底图（底色 + 区界 + 附件），数据层 fill / points /
+#   2026-10-15 10:00:00 | lijiaheng2428624104 | v2.4.0 | 底图和数据层分开：base() 只画底图（底色 + 区界 + 附件），数据层 fill / points /
 #                                          label / text 往上叠、缺哪个区就不画哪个，空数据不报错；新增区内标注 text()，
 #                                          label(inside="auto") 放得下写区内、放不下引到外面；plot() = base() + 数据层
-#   2026-10-15 14:00:00 | Matri | v2.5.0 | 地图在 ax 里居中：ax 占满给它的位置、多出的宽度两侧留白（frame fill=True），
+#   2026-10-15 14:00:00 | lijiaheng2428624104 | v2.5.0 | 地图在 ax 里居中：ax 占满给它的位置、多出的宽度两侧留白（frame fill=True），
 #                                          存图裁边时不再被标题挤到一边；比例尺、指北针按地图框定位；新增别名 alias
-#   2026-10-15 15:00:00 | Matri | v2.5.1 | 同一个 ax 画两遍底图（base 之后又 plot）时警告
-#   2026-10-15 16:00:00 | Matri | v2.5.2 | scale_bar / north_arrow 再调用是替换（挪位置），不叠加；base(scale=dict(km=..)) 可用
-#   2026-10-15 20:00:00 | Matri | v2.6.0 | 新数据层（实现在 layers.py）：hexbin 六边形热力（格宽按米、口径可选、按格抑制小样本）、
+#   2026-10-15 15:00:00 | lijiaheng2428624104 | v2.5.1 | 同一个 ax 画两遍底图（base 之后又 plot）时警告
+#   2026-10-15 16:00:00 | lijiaheng2428624104 | v2.5.2 | scale_bar / north_arrow 再调用是替换（挪位置），不叠加；base(scale=dict(km=..)) 可用
+#   2026-10-15 20:00:00 | lijiaheng2428624104 | v2.6.0 | 新数据层（实现在 layers.py）：hexbin 六边形热力（格宽按米、口径可选、按格抑制小样本）、
 #                                          bubbles 气泡（面积 ∝ 数值 + 参考圈图例）、flows 流向（OD 弧线）、facets 小多图（同色阶）、
 #                                          locator 定位小图；模块级 zoom / circle / colorbar / hexgrid
-#   2026-10-16 10:00:00 | Matri | v2.7.0 | 小样本抑制：fill / text / label / plot / facets 新增 min_value，
+#   2026-10-16 10:00:00 | lijiaheng2428624104 | v2.7.0 | 小样本抑制：fill / text / label / plot / facets 新增 min_value，
 #                                          不足门槛的区不上色（默认白底斜线）、标注写"<5"；只剩一个区被藏时警告（可反推）
 
 """地图：长宽比校正、比例尺、指北针，以及区域专题图 Regions。

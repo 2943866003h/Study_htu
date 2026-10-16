@@ -3,12 +3,12 @@
 # @File       : geo.py
 # @Path       : signal-insight/src/signal_insight/geo.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-14 10:03:29
 # @Version    : v1.0.0
 # @Description: 
 # @ChangeLog:
-#   2026-10-14 10:03:29 | Matri | v1.0.0 | 初始化创建
+#   2026-10-14 10:03:29 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 """空间计算：球面距离、从顶点表还原多边形、点落面。
 
 纯计算（AGENTS.md 第 4 条）：只接收数字、数组、DataFrame，不连数据库、不读文件、不 import viz。

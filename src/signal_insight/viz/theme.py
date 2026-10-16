@@ -3,16 +3,16 @@
 # @File       : viz.py
 # @Path       : signal-insight/src/signal_insight/viz.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-10 15:00:28
 # @Version    : v1.3.0
 # @Description: 统一出图风格：主题切换、业务语义配色、标题区/来源行
 # @ChangeLog:
-#   2026-10-10 15:00:28 | Matri | v1.0.0 | 初始化创建
-#   2026-10-10 16:30:00 | Matri | v1.1.0 | 接入主题系统(theme.py)：default/academic/business 可切换，
+#   2026-10-10 15:00:28 | lijiaheng2428624104 | v1.0.0 | 初始化创建
+#   2026-10-10 16:30:00 | lijiaheng2428624104 | v1.1.0 | 接入主题系统(theme.py)：default/academic/business 可切换，
 #                                          旧常量 MAIN/RED/AREA_COLOR 等保持可用并随主题同步
-#   2026-10-10 18:00:00 | Matri | v1.2.0 | apply_theme 返回本机实际生效字体并在缺中文字体时提示；新增 GREEN(通过)
-#   2026-10-10 20:00:00 | Matri | v1.3.0 | 切换主题时同步重绑 `from viz import MAIN` 等已导入的颜色常量，
+#   2026-10-10 18:00:00 | lijiaheng2428624104 | v1.2.0 | apply_theme 返回本机实际生效字体并在缺中文字体时提示；新增 GREEN(通过)
+#   2026-10-10 20:00:00 | lijiaheng2428624104 | v1.3.0 | 切换主题时同步重绑 `from viz import MAIN` 等已导入的颜色常量，
 #                                          旧代码 color=MAIN 不用改成 viz.MAIN；颜色常量加入 __all__
 
 """图表主题：语义色、切换主题、标题区与来源行。

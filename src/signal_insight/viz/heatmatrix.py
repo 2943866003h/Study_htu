@@ -3,12 +3,12 @@
 # @File       : heatmatrix.py
 # @Path       : signal-insight/src/signal_insight/viz/heatmatrix.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-16 10:00:00
 # @Version    : v1.0.0
 # @Description: 热力矩阵 viz.matrix：A 与 B 的关系（OD、联动、交叉表），格子里写数字，小样本自动抑制
 # @ChangeLog:
-#   2026-10-16 10:00:00 | Matri | v1.0.0 | 初始化创建
+#   2026-10-16 10:00:00 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 
 """热力矩阵：规范第 4 节"矩阵（A 与 B 的关系）→ 热力矩阵，格子里写数字"。
 

@@ -3,13 +3,13 @@
 # @File       : layers.py
 # @Path       : signal-insight/src/signal_insight/viz/layers.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-15 20:00:00
 # @Version    : v1.1.0
 # @Description: 地图的数据层（六边形热力、气泡、流向、小多图）和放大图配件（放大框、按米画圆、定位小图、色条）
 # @ChangeLog:
-#   2026-10-15 20:00:00 | Matri | v1.0.0 | 从 D3_05 抽出六边形热力和放大图配件；新增气泡、流向、小多图
-#   2026-10-16 10:00:00 | Matri | v1.1.0 | facets 支持 min_value / small（小样本抑制），被藏的数不参与色阶、不当"最多的区"
+#   2026-10-15 20:00:00 | lijiaheng2428624104 | v1.0.0 | 从 D3_05 抽出六边形热力和放大图配件；新增气泡、流向、小多图
+#   2026-10-16 10:00:00 | lijiaheng2428624104 | v1.1.0 | facets 支持 min_value / small（小样本抑制），被藏的数不参与色阶、不当"最多的区"
 
 """地图的数据层和配件。实现放在这里，入口挂在 Regions 上（geo.hexbin / geo.bubbles / geo.flows / geo.facets /
 geo.locator），和 fill / points / label 一样"往调用方给的 ax 上加一层，返回 matplotlib 对象"。

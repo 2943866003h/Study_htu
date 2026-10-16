@@ -3,12 +3,12 @@
 # @File       : dwd.py
 # @Path       : signal-insight/src/signal_insight/dwd.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-15 10:39:24
 # @Version    : v1.0.0
 # @Description: 明细层 dwd_signal: 原始信令的清洗
 # @ChangeLog:
-#   2026-10-15 10:39:24 | Matri | v1.0.0 | 初始化创建
+#   2026-10-15 10:39:24 | lijiaheng2428624104 | v1.0.0 | 初始化创建
 import pandas as pd
 
 from . import config

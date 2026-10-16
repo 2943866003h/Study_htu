@@ -3,15 +3,15 @@
 # @File       : mapcolors.py
 # @Path       : signal-insight/src/signal_insight/viz/mapcolors.py
 # @Project    : signal-insight
-# @Author     : Matri
+# @Author     : lijiaheng2428624104
 # @Date       : 2026-10-14 22:00:00
 # @Version    : v1.3.0
 # @Description: 地图自己的默认颜色，和 theme.py 无关
 # @ChangeLog:
-#   2026-10-14 22:00:00 | Matri | v1.0.0 | 初始化创建：地图颜色从 theme 里独立出来，可整体设置、临时设置、恢复默认
-#   2026-10-15 10:00:00 | Matri | v1.1.0 | 新增 land（底图底色）
-#   2026-10-15 20:00:00 | Matri | v1.2.0 | 新增 heat_low / heat_mid / heat_high（六边形热力色阶）、small（不足门槛的格子）
-#   2026-10-16 10:00:00 | Matri | v1.3.0 | 新增 small_hatch（fill 小样本抑制的斜线颜色）
+#   2026-10-14 22:00:00 | lijiaheng2428624104 | v1.0.0 | 初始化创建：地图颜色从 theme 里独立出来，可整体设置、临时设置、恢复默认
+#   2026-10-15 10:00:00 | lijiaheng2428624104 | v1.1.0 | 新增 land（底图底色）
+#   2026-10-15 20:00:00 | lijiaheng2428624104 | v1.2.0 | 新增 heat_low / heat_mid / heat_high（六边形热力色阶）、small（不足门槛的格子）
+#   2026-10-16 10:00:00 | lijiaheng2428624104 | v1.3.0 | 新增 small_hatch（fill 小样本抑制的斜线颜色）
 
 """地图的默认颜色。maps.py 和 callouts.py 只从这里取默认色，不读 theme.py：
 主题管通用图表的外观，地图的颜色单独设，改一边不会动另一边。
