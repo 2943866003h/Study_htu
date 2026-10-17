@@ -3,12 +3,12 @@
 # @File       : dims.py
 # @Path       : signal-insight/src/signal_insight/dims.py
 # @Project    : signal-insight
-# @Author     : lijiaheng2428624104
+# @Author     : Matri
 # @Date       : 2026-10-15 14:37:08
 # @Version    : v1.0.0
 # @Description: 维度表：dim_cell（扇区 → 站点 → 区县 → 商圈）、dim_hotspot（热点）。
 # @ChangeLog:
-#   2026-10-15 14:37:08 | lijiaheng2428624104 | v1.0.0 | 初始化创建
+#   2026-10-15 14:37:08 | Matri | v1.0.0 | 初始化创建
 """
 纯计算（AGENTS.md 第 4 条）：多边形由调用方用 geo.rings_from_points 还原好传进来，这里不读库。
 """
@@ -37,8 +37,8 @@ def build_dim_cell(ods_cell: pd.DataFrame, districts: dict, aois: dict) -> pd.Da
     return dim
 
 
-def build_dim_hotspot(dwd: pd.DataFrame, dim_cell: pd.DataFrame, top_n: int = 5,
-                    name: str = "西塔", radius_m: int = 500) -> pd.DataFrame:
+def build_dim_hotspot(dwd: pd.DataFrame, dim_cell: pd.DataFrame, top_n: int,
+                    name: str, radius_m: int) -> pd.DataFrame:
     """按 D04 的做法定热点中心：连接用户数前 top_n 的站点，按用户数加权平均。
 
     为什么不用第一名站点的坐标：一座基站覆盖几百米，第一名只是那座铁塔的位置，不是人群的重心。

@@ -3,18 +3,19 @@
 # @File       : geo.py
 # @Path       : signal-insight/src/signal_insight/geo.py
 # @Project    : signal-insight
-# @Author     : lijiaheng2428624104
+# @Author     : Matri
 # @Date       : 2026-10-14 10:03:29
 # @Version    : v1.0.0
 # @Description: 
 # @ChangeLog:
-#   2026-10-14 10:03:29 | lijiaheng2428624104 | v1.0.0 | 初始化创建
+#   2026-10-14 10:03:29 | Matri | v1.0.0 | 初始化创建
 """空间计算：球面距离、从顶点表还原多边形、点落面。
 
 纯计算（AGENTS.md 第 4 条）：只接收数字、数组、DataFrame，不连数据库、不读文件、不 import viz。
 所以测试时手写几个点就能测；notebook、流水线（D05）、地图（viz.maps）都能直接用。
 """
 from typing import Any, Hashable
+import math
 
 import numpy as np
 import pandas as pd
@@ -59,6 +60,15 @@ def point_in_polygons(lng, lat, polys: dict[str, list[np.ndarray]]) -> np.ndarra
         out[inside & pd.isna(out)] = name
     return out
 
+def dist_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """两点间的球面距离（米），标量版（D06）：在 Python 循环里一次只算一对点时用它。
+
+    为什么要两个版本：numpy 的优势是“一次算一百万对”；单独算一对点时，构造数组的开销比计算本身还大，
+    比这个 math 版慢几十倍。停留识别的内层循环一次只比一对点，所以用这个。
+    """
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lng2 - lng1) / 2) ** 2
+    return 2 * EARTH_R * math.asin(math.sqrt(a))
 
 if __name__ == '__main__':
     pass
